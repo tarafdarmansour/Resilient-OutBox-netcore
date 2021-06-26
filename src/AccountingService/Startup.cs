@@ -9,6 +9,7 @@ using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -31,7 +32,7 @@ namespace AccountingService
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllersWithViews();
-
+            services.AddMemoryCache();
             //services.AddRabbit(_env);
             services.AddMediatR(typeof(Startup));
 
@@ -62,12 +63,12 @@ namespace AccountingService
 
             app.UseAuthorization();
 
-            app.UseRabbitListeners(new List<Type> 
-            { 
-                typeof(CustomerCreated), 
-                typeof(CustomerUpdated), 
-                typeof(CustomerDeleted),
-            });
+            //app.UseRabbitListeners(new List<Type> 
+            //{ 
+            //    typeof(CustomerCreated), 
+            //    typeof(CustomerUpdated), 
+            //    typeof(CustomerDeleted),
+            //});
 
             app.UseEndpoints(endpoints =>
             {

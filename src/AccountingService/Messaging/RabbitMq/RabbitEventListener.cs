@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using RawRabbit;
 
@@ -9,62 +10,105 @@ namespace AccountingService.Messaging.RabbitMq
 {
     public class RabbitEventListener
     {
-        private readonly IBusClient busClient;
-        private readonly IServiceProvider serviceProvider;
+        private IBusClient _busClient;
+        private readonly IServiceProvider _serviceProvider;
+        private readonly IMemoryCache _cache;
 
-        public RabbitEventListener(
-            IBusClient busClient,
-            IServiceProvider serviceProvider)
+        public RabbitEventListener(IServiceProvider serviceProvider)
         {
-            this.busClient = busClient;
-            this.serviceProvider = serviceProvider;
+
+            _serviceProvider = serviceProvider;
+            try
+            {
+                using (var scope = _serviceProvider.CreateScope())
+                {
+                    _busClient =
+                        scope.ServiceProvider
+                            .GetRequiredService<IBusClient>();
+
+                    _cache = scope.ServiceProvider
+                            .GetRequiredService<IMemoryCache>();
+                }
+            }
+            catch (Exception exp)
+            {
+                Console.WriteLine(exp.Message);
+            }
+
         }
 
         public void ListenTo(List<Type> eventsToSubscribe)
         {
             foreach (var evtType in eventsToSubscribe)
             {
-                //add check if is INotification
-                this.GetType()
-                    .GetMethod("Subscribe", System.Reflection.BindingFlags.NonPublic| System.Reflection.BindingFlags.Instance)
-                    .MakeGenericMethod(evtType)
-                    .Invoke(this, new object[] { });
+                bool exist = false;
+                _cache.TryGetValue(evtType.ToString(),out exist);
+                if (!exist)
+                {
+                    this.GetType()
+                        .GetMethod("Subscribe", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                        .MakeGenericMethod(evtType)
+                        .Invoke(this, new object[] { });
+
+                    _cache.Set(evtType.ToString(),true,new MemoryCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(3000)
+                    });
+                }
+                    
             }
         }
 
         private void Subscribe<T>() where T : INotification
         {
-            //TODO: move exchange name and queue prefix to cfg
-            this.busClient.SubscribeAsync<T>(
-                async (msg,msgcontext) =>
+            if (_busClient != null)
+            {
+                SubscribeCore<T>();
+            }
+            else
+            {
+                try
                 {
-                    //add logging
-                    using (var scope = serviceProvider.CreateScope())
+                    using (var scope = _serviceProvider.CreateScope())
                     {
-                        var internalBus = scope.ServiceProvider.GetRequiredService<IMediator>();
-                        await internalBus.Publish(msg);
+                        _busClient =
+                            scope.ServiceProvider
+                                .GetRequiredService<IBusClient>();
                     }
+                    SubscribeCore<T>();
+                }
+                catch (Exception exp)
+                {
+                    Console.WriteLine(exp.Message);
+                }
+            }
+        }
 
-                },
-                cfg =>
-                    cfg.WithExchange(excfg =>
+        private void SubscribeCore<T>() where T : INotification
+        {
+            _busClient.SubscribeAsync<T>(
+                    async (msg, msgcontext) =>
                     {
-                        excfg.WithName("resilient-outbox-netcore");
-                        excfg.WithType(RawRabbit.Configuration.Exchange.ExchangeType.Topic);
-                        excfg.WithArgument("key", typeof(T).Name.ToLower());
-                    })
-                    .WithQueue(qcfg =>
-                    {
-                        qcfg.WithName("accounting-service-" + typeof(T).Name);
-                    })
-                //cfg => cfg.UseSubscribeConfiguration( 
-                //    c => c
-                //    .OnDeclaredExchange(e => e
-                //        .WithName("lab-dotnet-micro")
-                //        .WithType(RawRabbit.Configuration.Exchange.ExchangeType.Topic)
-                //        .WithArgument("key", typeof(T).Name.ToLower()))
-                //    .FromDeclaredQueue(q => q.WithName("lab-dashboard-service-" + typeof(T).Name)))
-                ) ;
+                        //add logging
+                        using (var scope = _serviceProvider.CreateScope())
+                        {
+                            var internalBus = scope.ServiceProvider.GetRequiredService<IMediator>();
+                            await internalBus.Publish(msg);
+                        }
+
+                    },
+                    cfg =>
+                        cfg.WithExchange(excfg =>
+                        {
+                            excfg.WithName("resilient-outbox-netcore");
+                            excfg.WithType(RawRabbit.Configuration.Exchange.ExchangeType.Topic);
+                            excfg.WithArgument("key", typeof(T).Name.ToLower());
+                        })
+                        .WithQueue(qcfg =>
+                        {
+                            qcfg.WithName("accounting-service-" + typeof(T).Name);
+                        })
+                    );
         }
     }
 }
