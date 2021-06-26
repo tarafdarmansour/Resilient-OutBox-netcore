@@ -18,9 +18,17 @@ namespace CustomerService.Messaging.RabbitMQ.Outbox
 
         public Outbox(IBusClient busClient, ILogger<Outbox> logger, IServiceProvider services)
         {
-            _busClient = busClient;
-            _services = services;
             this.logger = new OutboxLogger(logger);
+            try
+            {
+                _busClient = busClient;
+                _services = services;
+            }
+            catch (Exception exp)
+            {
+                logger.LogError(exp, "Failed to initaite Outbox", null);
+            }
+
         }
 
 
@@ -96,17 +104,25 @@ namespace CustomerService.Messaging.RabbitMQ.Outbox
         {
             var deserializedMsg = msg.RecreateMessage();
             var messageKey = deserializedMsg.GetType().Name.ToLower();
-            await _busClient.PublishAsync(deserializedMsg, msg.PublicId,
-            cfg =>
+
+            try
             {
-                cfg.WithExchange(
-                    excfg =>
-                    {
-                        excfg.WithDurability(true);
-                        excfg.WithName("resilient-outbox-netcore");
-                    })
-                .WithRoutingKey(messageKey);
-            });
+                await _busClient.PublishAsync(deserializedMsg, msg.PublicId,
+                            cfg =>
+                            {
+                                cfg.WithExchange(
+                                    excfg =>
+                                    {
+                                        excfg.WithDurability(true);
+                                        excfg.WithName("resilient-outbox-netcore");
+                                    })
+                                .WithRoutingKey(messageKey);
+                            });
+            }
+            catch (Exception exp)
+            {
+                logger.LogFailedPush(exp);
+            }
         }
 
     }

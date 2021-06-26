@@ -1,22 +1,41 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace CustomerService.Messaging.RabbitMQ.Outbox
 {
     public class OutboxSendingService : IHostedService
     {
-        private readonly Outbox outbox; 
+        private Outbox _outbox;
         private static SemaphoreSlim semaphoreSlim;
 
         private Timer timer;
         private static readonly object locker = new object();
+        private readonly IServiceProvider _services;
+        private readonly ILogger<OutboxSendingService> _logger;
 
-        public OutboxSendingService(Outbox outbox)
+        public OutboxSendingService(IServiceProvider services, ILogger<OutboxSendingService> logger)
         {
-            this.outbox = outbox;
+            _services = services;
+            _logger = logger;
             semaphoreSlim = new SemaphoreSlim(1, 1);
+
+            try
+            {
+                using (var scope = _services.CreateScope())
+                {
+                    _outbox =
+                        scope.ServiceProvider
+                            .GetRequiredService<Outbox>();
+                }
+            }
+            catch (Exception exp)
+            {
+                _logger.LogError(exp, "OutboxSendingService init");
+            }
         }
 
 
@@ -27,7 +46,7 @@ namespace CustomerService.Messaging.RabbitMQ.Outbox
                 PushMessages,
                 null,
                 TimeSpan.Zero,
-                TimeSpan.FromSeconds(1)
+                TimeSpan.FromSeconds(5)
             );
             return Task.CompletedTask;
         }
@@ -37,8 +56,8 @@ namespace CustomerService.Messaging.RabbitMQ.Outbox
             timer?.Change(Timeout.Infinite, 0);
             return Task.CompletedTask;
         }
-        
-        
+
+
         private async void PushMessages(object state)
         {
 
@@ -46,7 +65,24 @@ namespace CustomerService.Messaging.RabbitMQ.Outbox
             {
                 await semaphoreSlim.WaitAsync();
 
-                await outbox.PushPendingMessages();
+                if (_outbox != null)
+                    await _outbox.PushPendingMessages();
+                else
+                {
+                    try
+                    {
+                        using (var scope = _services.CreateScope())
+                        {
+                            _outbox =
+                                scope.ServiceProvider
+                                    .GetRequiredService<Outbox>();
+                        }
+                    }
+                    catch (Exception exp)
+                    {
+                        _logger.LogError(exp, "OutboxSendingService init");
+                    }
+                }
 
             }
             finally

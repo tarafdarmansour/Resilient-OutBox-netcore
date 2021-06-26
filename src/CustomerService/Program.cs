@@ -13,7 +13,21 @@ namespace CustomerService
     {
         public static void Main(string[] args)
         {
-            CreateHostBuilder(args).Build().Run();
+            try
+            {
+                CreateHostBuilder(args).Build().Run();
+
+            }
+            catch (RabbitMQ.Client.Exceptions.ConnectFailureException exp1)
+            {
+
+                throw;
+            }
+            catch (Exception exp2)
+            {
+                
+                throw;
+            }
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
