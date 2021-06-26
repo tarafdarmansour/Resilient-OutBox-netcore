@@ -1,0 +1,32 @@
+﻿@model CreateCustomerCommand
+
+@using (Html.BeginForm("Add", "Customer", FormMethod.Post))
+{
+    <table cellpadding="0" cellspacing="0">
+        <tr>
+            <th colspan="2" align="center">Person Details</th>
+        </tr>
+        <tr>
+            <td>FirstName: </td>
+            <td>
+                @Html.TextBoxFor(m => m.FirstName)
+            </td>
+        </tr>
+        <tr>
+            <td>LastName: </td>
+            <td>
+                @Html.TextBoxFor(m => m.LastName)
+            </td>
+        </tr>
+        <tr>
+            <td>BirthDate: </td>
+            <td>
+                @Html.TextBoxFor(m => m.BirthDate)
+            </td>
+        </tr>
+        <tr>
+            <td></td>
+            <td><input type="submit" value="Submit" /></td>
+        </tr>
+    </table>
+}

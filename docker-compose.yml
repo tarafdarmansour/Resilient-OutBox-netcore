@@ -1,0 +1,53 @@
+version: '3.4'
+
+services:
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    networks:
+      - mynetwork
+    ports:
+      - 5672:5672
+      - 15672:15672
+
+  customerservice:
+    image: resilientoutboxnetcore/customerservice:1.0
+    build:
+      context: src/
+      dockerfile: CustomerService/Dockerfile
+    depends_on:
+      - rabbitmq
+    networks:
+      - mynetwork
+    ports:
+      - 5101:80
+
+  accountingservice:
+    image: resilientoutboxnetcore/accountingservice:1.0
+    build:
+      context: src/
+      dockerfile: AccountingService/Dockerfile
+    depends_on:
+      - rabbitmq
+      - customerservice
+    networks:
+      - mynetwork
+    ports:
+      - 5102:80
+
+  taskservice:
+    image: resilientoutboxnetcore/taskservice:1.0
+    build:
+      context: src/
+      dockerfile: TaskService/Dockerfile
+    depends_on:
+      - rabbitmq
+      - customerservice
+    ports:
+      - 5103:80
+    networks:
+      - mynetwork
+ 
+networks:
+  mynetwork: 
+    driver: bridge
