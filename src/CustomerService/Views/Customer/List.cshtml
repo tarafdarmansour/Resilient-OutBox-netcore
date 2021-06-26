@@ -6,7 +6,8 @@
 <div class="container">
     <div class="row">
 
-        <a class="btn btn-success" href="/Customer/Add">Add Customer</a>
+        <a style="margin:10px;" class="btn btn-success" href="/Customer/Add">Add Customer</a>
+        <a style="margin:10px;" class="btn btn-success" id="addrandomcustomer" onclick="addrandomcutomer()" href="#">Add a random customer</a>
         <div class="col-md-12">
             <div class="table-responsive">
                 <table id="mytable" class="table table-bordred table-striped">
@@ -141,6 +142,22 @@
             contentType: "application/json; charset=utf-8",
             dataType: "json",
             data: JSON.stringify({ "Id": customerId }),
+            success: function () {
+                console.log('ok');
+                location.reload();
+            },
+            error: function (req, status, error) {
+                console.log('notok');
+            }
+        });
+    }
+
+    function addrandomcutomer() {
+        $.ajax({
+            type: "GET",
+            url: "@Url.Action("AddRandomCustomer")",
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
             success: function () {
                 console.log('ok');
                 location.reload();

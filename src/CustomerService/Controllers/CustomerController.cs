@@ -48,7 +48,7 @@ namespace CustomerService.Controllers
         }
 
         [HttpGet]
-        public  ActionResult Add()
+        public ActionResult Add()
         {
             return View();
         }
@@ -58,6 +58,27 @@ namespace CustomerService.Controllers
         {
             var result = await _bus.Send(cmd);
             return RedirectToAction("List");
+        }
+
+        [HttpGet]
+        public async Task<JsonResult> AddRandomCustomer()
+        {
+            Random r = new Random(DateTime.Now.Millisecond);
+            string postfix = r.Next(50, 100).ToString();
+            var cmd = new CreateCustomerCommand()
+            {
+                BirthDate = DateTime.Now.AddMonths(r.Next(200, 300) * -1),
+                FirstName = "Ali" + postfix,
+                LastName = "Ahmadi" + postfix
+            };
+
+            var result = await _bus.Send(cmd);
+
+            if (result.Id != Guid.Empty)
+                return new JsonResult("ok");
+
+            return new JsonResult("notok");
+
         }
     }
 }
