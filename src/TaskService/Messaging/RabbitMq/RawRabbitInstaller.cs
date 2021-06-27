@@ -20,8 +20,9 @@ namespace TaskService.Messaging.RabbitMq
                     env.EnvironmentName == "Production" ? "rabbit.Production.json" : "rabbit.Development.json")
             );
 
-            services.AddSingleton(svc => new RabbitEventListener(svc.GetRequiredService<IBusClient>(), svc));
-            
+            services.AddSingleton(svc => new RabbitEventListener(svc));
+            services.AddHostedService<OutBoxListenerChecker>();
+
             return services;
         }
     }

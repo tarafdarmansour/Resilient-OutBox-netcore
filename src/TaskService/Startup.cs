@@ -31,6 +31,7 @@ namespace TaskService
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllersWithViews();
+            services.AddMemoryCache();
             services.AddMediatR(typeof(Startup));
 
             services.AddLogging();
@@ -58,12 +59,12 @@ namespace TaskService
 
             app.UseAuthorization();
 
-            app.UseRabbitListeners(new List<Type>
-            {
-                typeof(CustomerCreated),
-                typeof(CustomerUpdated),
-                typeof(CustomerDeleted),
-            });
+            //app.UseRabbitListeners(new List<Type>
+            //{
+            //    typeof(CustomerCreated),
+            //    typeof(CustomerUpdated),
+            //    typeof(CustomerDeleted),
+            //});
 
 
             app.UseEndpoints(endpoints =>
